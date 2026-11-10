@@ -1,23 +1,49 @@
 name: Alerte vols
 
+# Fonctionnement : une session vérifie le site toutes les 5 minutes pendant
+# environ 5 h 30, puis se relance elle-même. La programmation horaire ne sert
+# que de secours si la chaîne s'arrête.
+
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "17 * * * *"
   workflow_dispatch:
-  # Déclenchement extérieur (cron-job.org) toutes les 5 minutes, sans message de test
   repository_dispatch:
-    types: [verifier]
+    types: [verifier, boucle]
+
+permissions:
+  contents: write # nécessaire pour que la session se relance elle-même
+
+concurrency:
+  group: alerte-vols
+  cancel-in-progress: false
 
 jobs:
   verifier:
     runs-on: ubuntu-latest
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: pip install requests
-      - run: python alerte.py
+
+      - name: Vérifier toutes les 5 minutes
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          for i in $(seq 1 66); do
+            # Le message de test n'est envoyé qu'au premier tour d'un lancement manuel
+            if [ "$i" -gt 1 ]; then export GITHUB_EVENT_NAME=boucle; fi
+            echo "--- Tour $i : $(date -u)"
+            python alerte.py || true
+            if [ "$i" -lt 66 ]; then sleep 300; fi
+          done
+
+      - name: Se relancer
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST repos/${{ github.repository }}/dispatches -f event_type=boucle
