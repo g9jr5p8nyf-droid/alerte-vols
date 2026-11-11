@@ -38,6 +38,8 @@ jobs:
             # Le message de test n'est envoyé qu'au premier tour d'un lancement manuel
             if [ "$i" -gt 1 ]; then export GITHUB_EVENT_NAME=boucle; fi
             echo "--- Tour $i : $(date -u)"
+            # Récupère la dernière version du script à chaque tour
+            git pull -q --ff-only || true
             python alerte.py || true
             if [ "$i" -lt 66 ]; then sleep 300; fi
           done
