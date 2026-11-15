@@ -97,9 +97,9 @@ elif maintenance:
     envoyer("⚠️ Le site affiche une maintenance (code " + str(statut) + ").\n"
             + "Ils sont peut-être en train de mettre la billetterie en ligne : " + URL)
 
-# Test de l'alerte sur une vente Showroomprivé (sans effet sur les vols)
+# Test de bout en bout contrôlé par l'utilisatrice (sans effet sur les vols)
 try:
-    import alerte_srp
-    alerte_srp.verifier()
+    import alerte_test
+    alerte_test.verifier()
 except Exception as e:
-    print("Test Showroomprivé ignoré :", e)
+    print("Test de la page ignoré :", e)
