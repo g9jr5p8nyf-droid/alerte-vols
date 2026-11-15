@@ -85,15 +85,30 @@ if date_changee:
 if redirige:
     raisons.append("le site redirige vers " + url_finale)
 
-if billetterie_ouverte:
+# Avec une vérification par minute, on n'envoie pas le même message à chaque
+# tour : premier message tout de suite, puis un rappel toutes les 10 minutes.
+def rappel_permis(nom, delai=600):
+    import time
+    marque = os.path.join(os.path.dirname(os.path.abspath(__file__)), "." + nom)
+    try:
+        if time.time() - os.path.getmtime(marque) < delai:
+            return False
+    except OSError:
+        pass
+    open(marque, "w").close()
+    return True
+
+
+if billetterie_ouverte and rappel_permis("alerte_billetterie"):
     envoyer("🚨🚨 La billetterie Bénin Tours n'est plus protégée par un mot de "
             "passe : la vente est peut-être ouverte !\nVa vite voir : "
             + URL_BILLETTERIE + "\n(et aussi " + URL + ")")
 
 if raisons:
-    envoyer("🚨 Le site des vols a changé, va vite voir : " + URL
-            + "\n- " + "\n- ".join(raisons))
-elif maintenance:
+    if rappel_permis("alerte_site"):
+        envoyer("🚨 Le site des vols a changé, va vite voir : " + URL
+                + "\n- " + "\n- ".join(raisons))
+elif maintenance and rappel_permis("alerte_maintenance"):
     envoyer("⚠️ Le site affiche une maintenance (code " + str(statut) + ").\n"
             + "Ils sont peut-être en train de mettre la billetterie en ligne : " + URL)
 

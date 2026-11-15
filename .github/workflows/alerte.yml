@@ -1,6 +1,6 @@
 name: Alerte vols
 
-# Fonctionnement : une session vérifie le site toutes les 5 minutes pendant
+# Fonctionnement : une session vérifie les sites toutes les minutes pendant
 # environ 5 h 30, puis se relance elle-même. La programmation horaire ne sert
 # que de secours si la chaîne s'arrête.
 
@@ -29,19 +29,19 @@ jobs:
           python-version: "3.12"
       - run: pip install requests
 
-      - name: Vérifier toutes les 5 minutes
+      - name: Vérifier toutes les minutes
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          for i in $(seq 1 66); do
+          for i in $(seq 1 330); do
             # Le message de test n'est envoyé qu'au premier tour d'un lancement manuel
             if [ "$i" -gt 1 ]; then export GITHUB_EVENT_NAME=boucle; fi
             echo "--- Tour $i : $(date -u)"
             # Récupère la dernière version du script à chaque tour
             git pull -q --ff-only || true
             python alerte.py || true
-            if [ "$i" -lt 66 ]; then sleep 300; fi
+            if [ "$i" -lt 330 ]; then sleep 60; fi
           done
 
       - name: Se relancer
