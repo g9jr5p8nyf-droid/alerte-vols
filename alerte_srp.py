@@ -1,30 +1,41 @@
-"""Test de l'alerte : prévient sur Telegram quand la vente Planète Sauvage
-apparaît sur Showroomprivé.
+"""Test de l'alerte : prévient sur Telegram quand une vente Showroomprivé
+attendue ouvre (Burberry, Planète Sauvage).
 
-On interroge la recherche publique du site (la même que sa barre de
-recherche), qui contient la liste des ventes en cours.
+Chaque vente a un numéro et une page publique /link/sale/<numéro> :
+- vente ouverte  -> la page de la vente (ventep.aspx), avec son nom dans og:title
+- vente à venir  -> renvoi vers l'accueil avec « mes=2 »
+- numéro inconnu -> renvoi vers l'accueil avec « mes=1 »
+On surveille les numéros récents et on lit le nom des ventes qui ouvrent.
 """
 import os
+import re
+import html
 import unicodedata
+from concurrent.futures import ThreadPoolExecutor
 import requests
 
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
-RECHERCHE = "https://6NMNDPDXJX-dsn.algolia.net/1/indexes/srp_sales_fr/query"
-ENTETES = {
-    "X-Algolia-Application-Id": "6NMNDPDXJX",
-    "X-Algolia-API-Key": "9627c7d92b37dd5a5b7598b323a3cdb7",  # clé publique du site
-    "Referer": "https://www.showroomprive.com/",
-}
-CHERCHE = "planete sauvage"
-# Évite de renvoyer la même alerte à chaque tour (toutes les 5 minutes)
-DEJA_ENVOYE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".srp_envoye")
+MOTS = ["burberry", "planete sauvage"]
+PREMIER, DERNIER = 160875, 161060  # numéros des ventes récentes et à venir (15/11/2026)
+UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+      "(KHTML, like Gecko) Chrome/130 Safari/537.36")
+DOSSIER = os.path.dirname(os.path.abspath(__file__))
+DEJA_ENVOYE = os.path.join(DOSSIER, ".srp_envoye")  # numéros déjà signalés
+CONNUES = os.path.join(DOSSIER, ".srp_connues")      # ventes déjà ouvertes, inutile de les relire
 
 
 def simplifier(texte):
     texte = unicodedata.normalize("NFKD", str(texte or ""))
     return "".join(c for c in texte if not unicodedata.combining(c)).lower()
+
+
+def lire(fichier):
+    try:
+        return set(open(fichier).read().split())
+    except OSError:
+        return set()
 
 
 def envoyer(msg):
@@ -38,25 +49,41 @@ def envoyer(msg):
         print("Erreur Telegram :", e)
 
 
-def verifier():
+def examiner(numero):
+    url = "https://www.showroomprive.com/link/sale/%d" % numero
     try:
-        r = requests.post(RECHERCHE, headers=ENTETES, timeout=20,
-                          json={"query": "sauvage", "hitsPerPage": 20})
-        ventes = r.json().get("hits", [])
-    except Exception as e:
-        print("Showroomprivé : erreur de lecture :", e)
-        return
+        r = requests.get(url, headers={"User-Agent": UA}, timeout=20)
+    except Exception:
+        return numero, None, None
+    if "ventep.aspx" not in r.url and "minisitep.aspx" not in r.url:
+        return numero, None, None  # pas (encore) ouverte
+    m = re.search(r'og:title" content="([^"]*)', r.text)
+    nom = html.unescape(m.group(1)).replace(" sur Showroomprive.com", "") if m else ""
+    return numero, nom, url
 
-    trouvees = [v for v in ventes
-                if CHERCHE in simplifier(v.get("label"))
-                or any(CHERCHE in simplifier(b) for b in v.get("brands") or [])]
-    print("Showroomprivé : vente Planète Sauvage en ligne :", bool(trouvees))
 
-    if trouvees and not os.path.exists(DEJA_ENVOYE):
-        v = trouvees[0]
-        envoyer("🦁 Test réussi ! La vente « " + str(v.get("label")) + " » est en "
-                "ligne sur Showroomprivé :\n" + str(v.get("saleUrl")))
-        open(DEJA_ENVOYE, "w").close()
+def verifier():
+    envoyes, connues = lire(DEJA_ENVOYE), lire(CONNUES)
+    a_voir = [n for n in range(PREMIER, DERNIER + 1) if str(n) not in connues]
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        resultats = list(pool.map(examiner, a_voir))
+
+    ouvertes = [(n, nom, url) for n, nom, url in resultats if url]
+    trouvees = [(n, nom, url) for n, nom, url in ouvertes
+                if any(mot in simplifier(nom) for mot in MOTS)]
+    print("Showroomprivé : %d numéros vus, %d ventes ouvertes, attendues : %s"
+          % (len(a_voir), len(ouvertes), [nom for _, nom, _ in trouvees] or "aucune"))
+
+    for n, nom, url in trouvees:
+        if str(n) not in envoyes:
+            envoyer("🛍️ Test réussi ! La vente « " + nom + " » vient d'ouvrir sur "
+                    "Showroomprivé :\n" + url)
+            envoyes.add(str(n))
+    # On ne relit plus les ventes ouvertes qui ne nous intéressent pas
+    connues |= {str(n) for n, nom, url in ouvertes if str(n) not in
+                {str(t[0]) for t in trouvees}}
+    open(DEJA_ENVOYE, "w").write("\n".join(sorted(envoyes)))
+    open(CONNUES, "w").write("\n".join(sorted(connues)))
 
 
 if __name__ == "__main__":
