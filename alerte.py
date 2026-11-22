@@ -112,6 +112,13 @@ elif maintenance and rappel_permis("alerte_maintenance"):
     envoyer("⚠️ Le site affiche une maintenance (code " + str(statut) + ").\n"
             + "Ils sont peut-être en train de mettre la billetterie en ligne : " + URL)
 
+# Alerte précoce : nouveaux certificats sur les domaines des vols (toutes les 30 min)
+try:
+    import alerte_certs
+    alerte_certs.verifier()
+except Exception as e:
+    print("Vérification des certificats ignorée :", e)
+
 # Test de bout en bout contrôlé par l'utilisatrice (sans effet sur les vols)
 try:
     import alerte_test

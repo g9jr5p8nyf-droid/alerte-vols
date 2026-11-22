@@ -1,4 +1,5 @@
 .alerte_*
+.certs_*
 .srp_connues
 .srp_envoye
 .test_envoye
