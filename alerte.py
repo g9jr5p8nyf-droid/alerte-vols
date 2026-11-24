@@ -67,6 +67,22 @@ billetterie_ouverte = statut_b == 200
 print("Billetterie Bénin Tours : code", statut_b,
       "| verrouillée :", statut_b == 401, "| ouverte :", billetterie_ouverte)
 
+# Empreinte de la configuration de la billetterie verrouillée (règles de
+# sécurité, page de mot de passe). Le 24/11/2026, l'ajout d'un anti-robots
+# (Cloudflare Turnstile) l'a modifiée sans toucher au mot de passe : un
+# changement de ce genre montre que l'équipe prépare le lancement.
+EMPREINTE_CONNUE = "fa8df02c4f2210e2"
+config_changee = False
+empreinte = None
+if statut_b == 401:
+    import hashlib
+    csp = " ".join(rb.headers.get("Content-Security-Policy", "").split())
+    signature = (csp + "|" + rb.headers.get("WWW-Authenticate", "") + "|"
+                 + hashlib.sha256(rb.content).hexdigest())
+    empreinte = hashlib.sha256(signature.encode()).hexdigest()[:16]
+    config_changee = empreinte != EMPREINTE_CONNUE
+print("Configuration billetterie :", empreinte, "| changée :", config_changee)
+
 # Lancement manuel = message de test
 if os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch":
     envoyer("✅ Test GitHub OK\n"
@@ -98,6 +114,13 @@ def rappel_permis(nom, delai=600):
     open(marque, "w").close()
     return True
 
+
+# Un seul message par nouvelle configuration (au plus un rappel par session)
+if config_changee and rappel_permis("alerte_config_" + empreinte, delai=10**9):
+    envoyer("⚠️ La configuration de la billetterie Bénin Tours vient de changer "
+            "(elle est toujours protégée par un mot de passe).\n"
+            "L'équipe est en train de la préparer : l'ouverture approche. "
+            "Garde ta fiche prête !\n" + URL_BILLETTERIE)
 
 if billetterie_ouverte and rappel_permis("alerte_billetterie"):
     envoyer("🚨🚨 La billetterie Bénin Tours n'est plus protégée par un mot de "
