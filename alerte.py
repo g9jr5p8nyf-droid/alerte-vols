@@ -135,6 +135,30 @@ elif maintenance and rappel_permis("alerte_maintenance"):
     envoyer("⚠️ Le site affiche une maintenance (code " + str(statut) + ").\n"
             + "Ils sont peut-être en train de mettre la billetterie en ligne : " + URL)
 
+# Garde-fou : si un site ne répond plus normalement pendant 10 vérifications
+# d'affilée (blocage des serveurs de GitHub, anti-robots, panne, adresse
+# changée…), l'alerte ne peut plus voir l'ouverture : on prévient.
+def suivre_anomalie(nom, anormal, detail, seuil=10):
+    import json
+    fichier = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".anomalies")
+    try:
+        compteurs = json.load(open(fichier))
+    except Exception:
+        compteurs = {}
+    compteurs[nom] = compteurs.get(nom, 0) + 1 if anormal else 0
+    json.dump(compteurs, open(fichier, "w"))
+    if compteurs[nom] >= seuil and rappel_permis("alerte_anomalie_" + nom, delai=7200):
+        envoyer("⚠️ Attention : " + detail + " depuis environ " + str(compteurs[nom])
+                + " minutes. L'alerte ne peut peut-être plus détecter l'ouverture : "
+                "va vérifier toi-même le site, et préviens-moi.")
+
+
+suivre_anomalie("site", statut != 200,
+                "voyage.benin.bj ne répond plus normalement (code " + str(statut) + ")")
+suivre_anomalie("billetterie", statut_b not in (200, 401),
+                "la billetterie voyage.benintours.bj ne répond plus normalement (code "
+                + str(statut_b) + ")")
+
 # Alerte précoce : nouveaux certificats sur les domaines des vols (toutes les 30 min)
 try:
     import alerte_certs

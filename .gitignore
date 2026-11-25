@@ -1,4 +1,5 @@
 .alerte_*
+.anomalies
 .certs_*
 .srp_connues
 .srp_envoye
