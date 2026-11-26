@@ -172,3 +172,10 @@ try:
     alerte_test.verifier()
 except Exception as e:
     print("Test de la page ignoré :", e)
+
+# Alerte précoce : nouveaux fichiers dans le dossier public de voyage.benin.bj (toutes les 5 min)
+try:
+    import alerte_dossiers
+    alerte_dossiers.verifier()
+except Exception as e:
+    print("Vérification du dossier ignorée :", e)
