@@ -180,7 +180,7 @@ try:
 except Exception as e:
     print("Vérification du dossier ignorée :", e)
 
-# Test grandeur nature : Black Friday AMS Beauty (supprimer alerte_ams.py pour arrêter)
+# Alerte retour en stock : palette VIBRANT MOOD (supprimer alerte_ams.py pour arrêter)
 try:
     import alerte_ams
     alerte_ams.verifier()
