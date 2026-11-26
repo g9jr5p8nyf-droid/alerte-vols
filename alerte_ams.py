@@ -4,8 +4,8 @@ Ce n'est pas lié aux vols : c'est un vrai test de l'alerte sur une vente
 attendue (27/11/2026), avec la même logique en deux niveaux que la billetterie :
   ⚠️  ça se prépare : « Black Friday » apparaît sur le site, une nouvelle
       collection Black Friday est créée, ou le site passe en mode « mot de passe » ;
-  🚨  c'est ouvert : des produits sont vraiment en promotion (prix barrés) ou la
-      collection Black Friday contient des produits.
+  🚨  c'est ouvert : des produits sont vraiment en promotion (prix barrés), ou la
+      collection Black Friday est remplie ET mise en avant sur la page d'accueil.
 
 État au 26/11/2026 à 13h30 : aucune mention de Black Friday, 0 produit en
 promotion, aucune collection Black Friday.
@@ -64,6 +64,8 @@ def get(chemin):
 
 def verifier():
     signes_prep, signes_ouvert = [], []
+    collection_remplie = None
+    accueil_bf = False
 
     # 1. Page d'accueil : mention Black Friday, ou site verrouillé par mot de passe
     r = get("/")
@@ -73,6 +75,7 @@ def verifier():
         texte = re.sub(r"<script.*?</script>|<style.*?</style>", " ", r.text, flags=re.S)
         texte = re.sub(r"<[^>]+>", " ", texte)
         m = MOTS.search(texte)
+        accueil_bf = bool(m) or "/collections/black-friday" in r.text
         if m:
             extrait = " ".join(texte[max(0, m.start() - 60):m.end() + 80].split())
             signes_prep.append(("accueil", "« Black Friday » apparaît sur la page d'accueil : … " + extrait + " …"))
@@ -85,8 +88,12 @@ def verifier():
                     or c.get("handle") in ("bf", "bf-2026"):
                 lien = SITE + "/collections/" + c["handle"]
                 if c.get("products_count", 0) > 0:
-                    signes_ouvert.append("collection « " + c["title"] + " » avec "
-                                         + str(c["products_count"]) + " produits : " + lien)
+                    # Remplie ne veut pas dire ouverte (26/11 23h37 : 345 produits
+                    # ajoutés, mais aucun prix réduit et aucun lien sur le site).
+                    collection_remplie = "collection « " + c["title"] + " » avec " \
+                        + str(c["products_count"]) + " produits : " + lien
+                    signes_prep.append(("remplie_" + c["handle"], collection_remplie
+                                        + " (mais pas encore de prix réduits)"))
                 elif recente(c.get("published_at")):
                     signes_prep.append(("col_" + c["handle"], "collection « " + c["title"] + " » créée (encore vide) : " + lien))
 
@@ -104,6 +111,10 @@ def verifier():
                     break
         if len(produits) < 250:
             break
+    # Ouvert si la collection remplie est mise en avant sur la page d'accueil
+    if collection_remplie and accueil_bf:
+        signes_ouvert.append(collection_remplie + " et mise en avant sur la page d'accueil")
+        signes_prep = [s for s in signes_prep if not s[0].startswith("remplie_")]
     if len(promos) >= SEUIL_PROMOS:
         signes_ouvert.append(str(len(promos)) + " produits à prix barré, par exemple : "
                              + " ; ".join(promos[:3]))
