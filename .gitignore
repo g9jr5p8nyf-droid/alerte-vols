@@ -6,3 +6,4 @@
 .test_envoye
 __pycache__/
 .dossiers_*
+.ams_*
