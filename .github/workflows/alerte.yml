@@ -29,6 +29,21 @@ jobs:
           python-version: "3.12"
       - run: pip install requests
 
+      # Mémoire des messages déjà envoyés : récupérée d'une session à l'autre,
+      # sinon chaque relance (toutes les 5 h 30) renverrait les mêmes ⚠️.
+      - name: Récupérer la mémoire
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .alerte_*
+            .certs_*
+            .anomalies
+            .test_envoye
+            .dossiers_*
+            .ams_*
+          key: memoire-${{ github.run_id }}
+          restore-keys: memoire-
+
       - name: Vérifier toutes les minutes
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
@@ -43,6 +58,19 @@ jobs:
             python alerte.py || true
             if [ "$i" -lt 330 ]; then sleep 60; fi
           done
+
+      - name: Sauvegarder la mémoire
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .alerte_*
+            .certs_*
+            .anomalies
+            .test_envoye
+            .dossiers_*
+            .ams_*
+          key: memoire-${{ github.run_id }}
 
       - name: Se relancer
         if: always()

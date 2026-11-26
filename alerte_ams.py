@@ -48,6 +48,16 @@ def permis(nom, delai):
     return True
 
 
+def recente(date_iso, heures=3):
+    """Vrai si la date (format Shopify) date de moins de « heures » heures."""
+    from datetime import datetime, timezone
+    try:
+        d = datetime.fromisoformat(date_iso)
+        return (datetime.now(timezone.utc) - d).total_seconds() < heures * 3600
+    except Exception:
+        return True
+
+
 def get(chemin):
     return requests.get(SITE + chemin, headers=ENTETES, timeout=25)
 
@@ -77,7 +87,7 @@ def verifier():
                 if c.get("products_count", 0) > 0:
                     signes_ouvert.append("collection « " + c["title"] + " » avec "
                                          + str(c["products_count"]) + " produits : " + lien)
-                else:
+                elif recente(c.get("published_at")):
                     signes_prep.append(("col_" + c["handle"], "collection « " + c["title"] + " » créée (encore vide) : " + lien))
 
     # 3. Produits à prix barré (la vraie promotion)
