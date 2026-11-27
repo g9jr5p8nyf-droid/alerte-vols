@@ -55,7 +55,7 @@ jobs:
             echo "--- Tour $i : $(date -u)"
             # Récupère la dernière version du script à chaque tour
             git pull -q --ff-only || true
-            python alerte_ams.py || true  # alertes Bénin arrêtées le 27/11 (billet réservé) : remettre alerte.py pour les relancer
+            python alerte.py || true  # Bénin + palette AMS (alerte_ams appelée depuis alerte.py)
             if [ "$i" -lt 330 ]; then sleep 60; fi
           done
 
