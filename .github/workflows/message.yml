@@ -1,0 +1,21 @@
+name: Envoyer un message Telegram
+
+# Déclenché par la tâche planifiée qui regarde les places dans le navigateur :
+# elle ne connaît pas le jeton Telegram, alors elle demande à GitHub d'envoyer le message.
+on:
+  repository_dispatch:
+    types: [telegram]
+
+jobs:
+  envoyer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Envoyer
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TEXTE: ${{ github.event.client_payload.texte }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=${TEXTE}" > /dev/null
