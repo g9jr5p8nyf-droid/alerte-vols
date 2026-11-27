@@ -19,7 +19,7 @@ DERNIERE = os.path.join(DOSSIER, ".certs_derniere")  # heure de la dernière vé
 ENVOYES = os.path.join(DOSSIER, ".certs_envoyes")    # certificats déjà signalés
 
 # Certificats déjà connus au 22/11/2026 : on ne signale que ceux créés après
-DEPUIS = "2026-11-22"
+DEPUIS = "2026-11-27T18:00"  # après l'ouverture et le passage à Cloudflare
 # benin.bj a beaucoup de sites publics : on ne garde que les noms liés aux vols.
 # benintours.bj : tout nouveau certificat compte.
 MOTS_BENIN = ("voyage", "charter", "vol", "billet", "reserv", "booking", "diaspora", "flight")
