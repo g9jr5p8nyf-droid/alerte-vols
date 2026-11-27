@@ -85,7 +85,7 @@ print("Billetterie Bénin Tours : code", statut_b,
 # sécurité, page de mot de passe). Le 24/11/2026, l'ajout d'un anti-robots
 # (Cloudflare Turnstile) l'a modifiée sans toucher au mot de passe : un
 # changement de ce genre montre que l'équipe prépare le lancement.
-EMPREINTE_CONNUE = "fa8df02c4f2210e2"
+EMPREINTE_CONNUE = "f6bb96efb7fb31f8"  # 27/11 12h15 : billetterie passée derrière Cloudflare
 config_changee = False
 empreinte = None
 if statut_b == 401:
