@@ -64,8 +64,22 @@ except Exception as e:
 # Seul un vrai accès public compte (200) : une panne (5xx) ou une erreur
 # réseau ne déclenche rien, pour éviter les fausses alertes.
 billetterie_ouverte = statut_b == 200
+
+# Si, à l'ouverture, une page de vérification anti-robots (Cloudflare, AWS WAF…)
+# s'affiche à la place du mot de passe, ça compte aussi comme une ouverture :
+# le mot de passe a disparu, et une vraie personne passera la vérification.
+MARQUES_VERIF = ("challenge-platform", "cf-mitigated", "just a moment",
+                 "cf-turnstile", "turnstile", "awswaf", "aws-waf-token",
+                 "captcha", "verify you are human", "vérification")
+verif_antirobot = False
+if statut_b is not None and statut_b not in (200, 401) and statut_b < 500:
+    contenu_b = (rb.text[:20000] + " " + " ".join(rb.headers.keys())
+                 + " " + rb.headers.get("cf-mitigated", "")).lower()
+    verif_antirobot = any(m in contenu_b for m in MARQUES_VERIF)
+billetterie_ouverte = billetterie_ouverte or verif_antirobot
 print("Billetterie Bénin Tours : code", statut_b,
-      "| verrouillée :", statut_b == 401, "| ouverte :", billetterie_ouverte)
+      "| verrouillée :", statut_b == 401, "| ouverte :", billetterie_ouverte,
+      "| vérification anti-robots :", verif_antirobot)
 
 # Empreinte de la configuration de la billetterie verrouillée (règles de
 # sécurité, page de mot de passe). Le 24/11/2026, l'ajout d'un anti-robots
