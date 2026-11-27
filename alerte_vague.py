@@ -20,7 +20,6 @@ DOSSIER = os.path.dirname(os.path.abspath(__file__))
 ENTETES = {"User-Agent": "Mozilla/5.0 (alerte personnelle; 1 visite/minute)"}
 
 SITE_INFO = "https://voyage.benin.bj"
-DATE_INFO_CONNUE = "Fri, 07 Aug 2026 17:12:31 GMT"
 BILLETTERIE = "https://voyage.benintours.bj"
 VERSION_CONNUE = "index-Ctt2UQh6.js"  # version mise en ligne le 27/11 à 11h48
 
@@ -56,13 +55,20 @@ def une_fois(nom, cle, msg):
 
 
 def verifier_site_info():
-    r = requests.get(SITE_INFO, headers=ENTETES, timeout=20)
-    if r.status_code != 200:
-        return
-    date = r.headers.get("Last-Modified", "")
-    if date and date != DATE_INFO_CONNUE:
-        une_fois("info", date, "🚨 voyage.benin.bj vient d'être mis à jour : de nouvelles dates "
-                 "ou une nouvelle vente sont peut-être annoncées. Va voir vite :\n" + SITE_INFO)
+    # Depuis l'ouverture du 27/11, voyage.benin.bj redirige vers la billetterie :
+    # c'est l'état connu. On signale seulement s'il change à nouveau.
+    r = requests.get(SITE_INFO, headers=ENTETES, timeout=20, allow_redirects=False)
+    if r.status_code in (301, 302, 307, 308):
+        cible = r.headers.get("Location", "")
+        if "voyage.benintours.bj" in cible:
+            return
+        une_fois("info", "redir:" + cible, "🚨 voyage.benin.bj renvoie maintenant vers une autre "
+                 "page : de nouvelles dates sont peut-être annoncées. Va voir vite :\n" + cible)
+    elif r.status_code == 200:
+        date = r.headers.get("Last-Modified", "")
+        une_fois("info", "page:" + date, "🚨 voyage.benin.bj affiche de nouveau sa propre page : "
+                 "de nouvelles dates ou une nouvelle vente sont peut-être annoncées. Va voir vite :\n"
+                 + SITE_INFO)
 
 
 def verifier_billetterie():
